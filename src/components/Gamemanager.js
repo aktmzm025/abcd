@@ -147,19 +147,45 @@ const GameManager = () => {
     actions.setGameState('game');
   }, [actions]);
 
-  // 아티펙트 선택 핸들러
-  const handleArtifactSelect = useCallback((selectedArtifact) => {
-    actions.addArtifact(selectedArtifact);
-    actions.clearArtifactRewards();
+// handleArtifactSelect 함수 수정
+const handleArtifactSelect = useCallback((selectedArtifact) => {
+  actions.addArtifact(selectedArtifact);
+  actions.clearArtifactRewards();
+  
+  // 게임 시작시 아티펙트 선택이었다면 게임 화면으로
+  if (state.gameState === 'artifact_select' && state.currentStage === 1 && state.currentLayer === 1 && !state.player) {
+    actions.setGameState('game');
+  } else {
+    // 전투 후 아티펙트 드롭이었다면 스테이지 진행 처리
     
-    // 게임 시작시 아티펙트 선택이었다면 게임 화면으로
-    if (state.gameState === 'artifact_select' && state.currentStage === 1 && state.currentLayer === 1) {
-      actions.setGameState('game');
-    } else {
-      // 일반 아티펙트 드롭이었다면 게임으로 돌아가기
-      actions.setGameState('game');
+    // totalTurns 증가 (전투 완료)
+    actions.incrementTotalTurns();
+    const newTotalTurns = state.totalTurns + 1;
+    
+    // 3번의 행동 완료마다 카드 보상 체크
+    if (newTotalTurns % 3 === 0) {
+      const cardRewards = generateCardRewards();
+      actions.setCardRewards(cardRewards);
+      actions.setGameState('card_reward');
+      return;
     }
-  }, [actions, state.gameState, state.currentStage, state.currentLayer]);
+    
+    // 스테이지 진행
+    if (state.currentStage === gameConstants.STAGES_PER_LAYER) {
+      // 계층 클리어
+      actions.updatePlayerHp(state.player.baseHp); // 체력 회복
+      actions.setLayer(state.currentLayer + 1);
+      actions.setStage(1);
+    } else {
+      actions.setStage(state.currentStage + 1);
+    }
+    
+    actions.setEnemy(null);
+    actions.clearCombatLog();
+    actions.setGameState('game');
+  }
+}, [actions, state.gameState, state.currentStage, state.currentLayer, state.player, state.totalTurns, generateCardRewards]);
+
 
   // 아티펙트 선택 건너뛰기 핸들러
   const handleSkipArtifact = useCallback(() => {
